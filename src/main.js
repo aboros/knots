@@ -8,6 +8,7 @@ import { Dashboard } from './components/Dashboard.js';
 import { loadState, saveState, resetProgress, updateSettings, completeChallenge, completeChapter, updateAchievement, getChapterProgress, isChapterUnlocked } from './utils/storage.js';
 import { calculateDistance, calculateDestination, calculateRhumbDestination, calculateError, calculateStarRating, formatLatitude, formatLongitude, formatDistance, formatSpeed, dmToDecimal, DEG_TO_RAD, NM_TO_KM } from './utils/navigation.js';
 import { chapters, quizQuestions, tooltips, achievements } from './data/challenges.js';
+import { trackEvent, trackSimpleEvent, throttle } from './utils/analytics.js';
 
 class NauticalApp {
   constructor() {
@@ -24,11 +25,24 @@ class NauticalApp {
   }
 
   init() {
+    // Track app start
+    const hasProgress = this.state.userProgress.challengesCompleted.length > 0;
+    trackEvent('app_start', {
+      first_visit: !hasProgress,
+      has_progress: hasProgress
+    });
+    
     this.bindEvents();
     this.bindKeyboardEvents();
     this.showFirstVisitNotice();
     this.initLandingGlobe();
     this.updateUI();
+    
+    // Track landing view
+    const returningUser = hasProgress;
+    trackEvent('app_landing_view', {
+      returning_user: returningUser
+    });
   }
 
   bindKeyboardEvents() {
@@ -42,24 +56,28 @@ class NauticalApp {
         case 'ArrowLeft':
           if (this.currentMode === 'game') {
             e.preventDefault();
+            trackSimpleEvent('keyboard_shortcut');
             this.prevChallenge();
           }
           break;
         case 'ArrowRight':
           if (this.currentMode === 'game') {
             e.preventDefault();
+            trackSimpleEvent('keyboard_shortcut');
             this.nextChallenge();
           }
           break;
         case 'ArrowUp':
           if (this.globe && this.currentMode === 'game') {
             e.preventDefault();
+            trackSimpleEvent('keyboard_shortcut');
             this.globe.zoomIn();
           }
           break;
         case 'ArrowDown':
           if (this.globe && this.currentMode === 'game') {
             e.preventDefault();
+            trackSimpleEvent('keyboard_shortcut');
             this.globe.zoomOut();
           }
           break;
@@ -67,6 +85,7 @@ class NauticalApp {
         case 'R':
           if (this.globe && this.currentMode === 'game') {
             e.preventDefault();
+            trackSimpleEvent('keyboard_shortcut');
             this.globe.resetView();
           }
           break;
@@ -84,11 +103,13 @@ class NauticalApp {
         case 'M':
           if (this.currentMode === 'game') {
             e.preventDefault();
+            trackSimpleEvent('keyboard_shortcut');
             this.showChapterMenu();
           }
           break;
         case '?':
           // Show keyboard shortcuts help
+          trackSimpleEvent('keyboard_help_show');
           this.showKeyboardHelp();
           break;
       }
@@ -130,40 +151,80 @@ class NauticalApp {
     document.getElementById('start-btn')?.addEventListener('click', () => this.startLearning());
 
     // Navigation
-    document.getElementById('home-btn')?.addEventListener('click', () => this.goHome());
+    document.getElementById('home-btn')?.addEventListener('click', () => {
+      trackEvent('app_home_click', {
+        from_chapter: this.state.currentChapter,
+        from_challenge: this.state.currentChallenge
+      });
+      this.goHome();
+    });
     document.getElementById('prev-btn')?.addEventListener('click', () => this.prevChallenge());
     document.getElementById('next-btn')?.addEventListener('click', () => this.nextChallenge());
     document.getElementById('chapter-menu-btn')?.addEventListener('click', () => this.showChapterMenu());
 
     // Mobile navigation footer (always visible on mobile)
-    document.getElementById('mobile-prev-btn')?.addEventListener('click', () => this.prevChallenge());
-    document.getElementById('mobile-next-btn')?.addEventListener('click', () => this.nextChallenge());
-    document.getElementById('mobile-chapter-menu-btn')?.addEventListener('click', () => this.showChapterMenu());
+    document.getElementById('mobile-prev-btn')?.addEventListener('click', () => {
+      trackSimpleEvent('mobile_nav_use');
+      this.prevChallenge();
+    });
+    document.getElementById('mobile-next-btn')?.addEventListener('click', () => {
+      trackSimpleEvent('mobile_nav_use');
+      this.nextChallenge();
+    });
+    document.getElementById('mobile-chapter-menu-btn')?.addEventListener('click', () => {
+      trackSimpleEvent('mobile_nav_use');
+      this.showChapterMenu();
+    });
 
     // Globe controls
-    document.getElementById('zoom-in-btn')?.addEventListener('click', () => this.globe?.zoomIn());
-    document.getElementById('zoom-out-btn')?.addEventListener('click', () => this.globe?.zoomOut());
-    document.getElementById('reset-view-btn')?.addEventListener('click', () => this.globe?.resetView());
+    document.getElementById('zoom-in-btn')?.addEventListener('click', () => {
+      trackSimpleEvent('globe_zoom_in');
+      this.globe?.zoomIn();
+    });
+    document.getElementById('zoom-out-btn')?.addEventListener('click', () => {
+      trackSimpleEvent('globe_zoom_out');
+      this.globe?.zoomOut();
+    });
+    document.getElementById('reset-view-btn')?.addEventListener('click', () => {
+      trackSimpleEvent('globe_reset_view');
+      this.globe?.resetView();
+    });
     document.getElementById('collapse-globe-btn')?.addEventListener('click', () => this.toggleGlobeCollapse());
 
     // Settings
     document.getElementById('settings-btn')?.addEventListener('click', () => {
+      trackSimpleEvent('settings_open');
       document.getElementById('settings-modal')?.showModal();
     });
     document.getElementById('show-hints-toggle')?.addEventListener('change', (e) => {
+      trackEvent('settings_hints_toggle', {
+        enabled: e.target.checked
+      });
       this.state = updateSettings(this.state, { showHints: e.target.checked });
     });
     document.getElementById('show-grid-toggle')?.addEventListener('change', (e) => {
+      trackEvent('settings_grid_toggle', {
+        enabled: e.target.checked
+      });
       this.state = updateSettings(this.state, { showGrid: e.target.checked });
       this.globe?.setGridVisible(e.target.checked);
     });
     document.getElementById('rotation-speed')?.addEventListener('input', (e) => {
       const speed = parseFloat(e.target.value);
+      trackEvent('settings_rotation_speed', {
+        speed: speed
+      });
       this.state = updateSettings(this.state, { rotationSpeed: speed });
       this.globe?.setRotationSpeed(speed);
     });
     document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
       if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+        const chaptersCompleted = this.state.userProgress.chaptersCompleted.length;
+        const totalStars = this.state.userProgress.scores.totalStars;
+        trackEvent('app_reset_progress', {
+          chapters_completed: chaptersCompleted,
+          total_stars: totalStars
+        });
         this.state = resetProgress();
         document.getElementById('settings-modal')?.close();
         this.goHome();
@@ -175,6 +236,9 @@ class NauticalApp {
       document.getElementById('first-visit-notice')?.classList.add('hidden');
       this.state.firstVisitNoticeShown = true;
       saveState(this.state);
+      trackEvent('first_visit_notice_dismiss', {
+        auto_dismissed: false
+      });
     });
   }
 
@@ -187,6 +251,9 @@ class NauticalApp {
           document.getElementById('first-visit-notice')?.classList.add('hidden');
           this.state.firstVisitNoticeShown = true;
           saveState(this.state);
+          trackEvent('first_visit_notice_dismiss', {
+            auto_dismissed: true
+          });
         }, 8000);
       }, 2000);
     }
@@ -204,6 +271,11 @@ class NauticalApp {
 
   startLearning() {
     this.currentMode = this.state.settings.tutorialCompleted ? 'game' : 'tutorial';
+
+    // Track start learning
+    trackEvent('app_start_learning', {
+      tutorial_completed: this.state.settings.tutorialCompleted
+    });
 
     // Clean up landing globe
     if (this.landingGlobe) {
@@ -228,9 +300,25 @@ class NauticalApp {
 
       this.globe.onPointPlaced = (coords) => this.handlePointPlaced(coords);
       this.globe.onHover = (coords) => this.handleHover(coords);
+      
+      // Track globe rotation in game mode (throttled)
+      if (this.globe && this.globe.controls) {
+        const throttledRotate = throttle(() => {
+          if (this.currentMode === 'game') {
+            trackEvent('globe_rotate', {
+              interaction_type: 'drag'
+            });
+          }
+        }, 2000); // Track every 2 seconds max
+        
+        this.globe.controls.addEventListener('change', () => {
+          throttledRotate();
+        });
+      }
     }
 
     if (this.currentMode === 'tutorial') {
+      trackSimpleEvent('tutorial_start');
       this.showTutorial();
     } else {
       this.loadChapter(this.state.currentChapter);
@@ -314,6 +402,7 @@ class NauticalApp {
         if (this.currentMode === 'tutorial' && !this.state.tutorialProgress.globeRotated) {
           this.state.tutorialProgress.globeRotated = true;
           saveState(this.state);
+          trackSimpleEvent('tutorial_globe_rotate');
           if (this.tutorialSteps[this.tutorialStep]?.waitFor === 'globeRotated') {
             this.tutorialStep++;
             this.renderTutorialStep();
@@ -379,6 +468,12 @@ class NauticalApp {
 
     // Bind button events
     document.getElementById('tutorial-action-btn')?.addEventListener('click', () => {
+      // Track step completion
+      trackEvent('tutorial_step_complete', {
+        step_number: this.tutorialStep + 1,
+        step_type: step.action
+      });
+      
       this.tutorialStep++;
       if (this.tutorialStep >= this.tutorialSteps.length) {
         this.completeTutorial();
@@ -388,6 +483,9 @@ class NauticalApp {
     });
 
     document.getElementById('skip-tutorial-btn')?.addEventListener('click', () => {
+      trackEvent('tutorial_skip', {
+        step_when_skipped: this.tutorialStep + 1
+      });
       this.completeTutorial();
     });
   }
@@ -398,12 +496,14 @@ class NauticalApp {
         this.globe.placePointA(coords.lat, coords.lon);
         this.state.tutorialProgress.pointAPlaced = true;
         saveState(this.state);
+        trackSimpleEvent('tutorial_point_a_placed');
         this.tutorialStep++;
         this.renderTutorialStep();
       } else if (!this.state.tutorialProgress.pointBPlaced) {
         this.globe.placePointB(coords.lat, coords.lon);
         this.state.tutorialProgress.pointBPlaced = true;
         saveState(this.state);
+        trackSimpleEvent('tutorial_point_b_placed');
         this.tutorialStep++;
         this.renderTutorialStep();
       }
@@ -417,9 +517,20 @@ class NauticalApp {
       this.updatePlaceButtons();
       this.updateMeasurementInfo();
 
+      // Track point placement
+      trackEvent('challenge_point_place', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        point_type: 'A',
+        lat: Math.round(coords.lat * 10) / 10,
+        lon: Math.round(coords.lon * 10) / 10
+      });
+
       // Update achievement
       if (this.currentPointA && this.currentPointB) {
+        const prevUnlocked = this.state.achievements.globeTrotter?.unlocked || false;
         this.state = updateAchievement(this.state, 'globeTrotter');
+        this.trackAchievementUpdate('globeTrotter', prevUnlocked);
       }
     } else if (this.placingPoint === 'B') {
       this.globe.placePointB(coords.lat, coords.lon);
@@ -428,9 +539,20 @@ class NauticalApp {
       this.updatePlaceButtons();
       this.updateMeasurementInfo();
 
+      // Track point placement
+      trackEvent('challenge_point_place', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        point_type: 'B',
+        lat: Math.round(coords.lat * 10) / 10,
+        lon: Math.round(coords.lon * 10) / 10
+      });
+
       // Update achievement
       if (this.currentPointA && this.currentPointB) {
+        const prevUnlocked = this.state.achievements.globeTrotter?.unlocked || false;
         this.state = updateAchievement(this.state, 'globeTrotter');
+        this.trackAchievementUpdate('globeTrotter', prevUnlocked);
       }
     }
   }
@@ -453,6 +575,15 @@ class NauticalApp {
     document.getElementById('tutorial-overlay')?.classList.add('hidden');
     this.state.settings.tutorialCompleted = true;
     saveState(this.state);
+    
+    // Track tutorial completion
+    const tutorialStartTime = this.state.sessionStartTime || Date.now();
+    const timeSeconds = Math.round((Date.now() - tutorialStartTime) / 1000);
+    trackEvent('tutorial_complete', {
+      steps_completed: this.tutorialSteps.length,
+      time_seconds: timeSeconds
+    });
+    
     this.currentMode = 'game';
     this.loadChapter(1);
   }
@@ -464,6 +595,14 @@ class NauticalApp {
     this.state.currentChapter = chapterNum;
     this.state.currentChallenge = 0;
     saveState(this.state);
+
+    // Track chapter load
+    const isUnlocked = isChapterUnlocked(this.state, chapterNum);
+    trackEvent('chapter_load', {
+      chapter_id: chapterNum,
+      chapter_title: chapter.title.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      is_unlocked: isUnlocked
+    });
 
     this.updateProgressBar();
     this.loadChallenge(0);
@@ -477,10 +616,28 @@ class NauticalApp {
     this.state.currentChallenge = challengeIndex;
     saveState(this.state);
 
+    // Track challenge start
+    trackEvent('challenge_start', {
+      chapter_id: this.state.currentChapter,
+      challenge_id: challengeIndex + 1,
+      challenge_type: challenge.type
+    });
+
     this.challengeStartTime = Date.now();
     this.globe?.clearPoints();
     this.currentPointA = null;
     this.currentPointB = null;
+
+    // Track challenge view
+    const isFirstAttempt = !this.state.userProgress.challengesCompleted.some(
+      c => c.chapter === this.state.currentChapter && c.challenge === challengeIndex
+    );
+    trackEvent('challenge_view', {
+      chapter_id: this.state.currentChapter,
+      challenge_id: challengeIndex + 1,
+      challenge_type: challenge.type,
+      is_first_attempt: isFirstAttempt
+    });
 
     this.renderChallengePanel(chapter, challenge);
     this.updateNavButtons();
@@ -549,6 +706,22 @@ class NauticalApp {
     panel.innerHTML = content;
 
     this.bindChallengeEvents(challenge);
+
+    // Track hint viewing
+    if (challenge.hints && this.state.settings.showHints) {
+      const hintCheckbox = panel.querySelector('.collapse input[type="checkbox"]');
+      if (hintCheckbox) {
+        hintCheckbox.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            trackEvent('challenge_hint_view', {
+              chapter_id: this.state.currentChapter,
+              challenge_id: this.state.currentChallenge + 1,
+              hint_count: challenge.hints.length
+            });
+          }
+        });
+      }
+    }
 
     // Update mobile navigation footer state
     this.updateMobileNavFooter();
@@ -927,6 +1100,12 @@ class NauticalApp {
       this.placingPoint = null;
       this.updatePlaceButtons();
       document.getElementById('measurement-info')?.classList.add('hidden');
+      
+      // Track point clear
+      trackEvent('challenge_point_clear', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1
+      });
     });
 
     // Great circle toggle
@@ -1003,6 +1182,14 @@ class NauticalApp {
       this.currentPointB.lat, this.currentPointB.lon
     );
 
+    // Track distance measurement
+    trackEvent('challenge_distance_measure', {
+      chapter_id: this.state.currentChapter,
+      challenge_id: this.state.currentChallenge + 1,
+      distance_nm: Math.round(distance * 10) / 10,
+      distance_km: Math.round(distance * NM_TO_KM * 10) / 10
+    });
+
     const formatted = formatDistance(distance);
 
     const nmEl = document.getElementById('distance-nm');
@@ -1056,10 +1243,40 @@ class NauticalApp {
     const stars = calculateStarRating(error.distanceNM, distanceTraveled);
     const timeTaken = Math.round((Date.now() - this.challengeStartTime) / 1000);
 
+    // Track answer submission
+    trackEvent('challenge_answer_submit', {
+      chapter_id: this.state.currentChapter,
+      challenge_id: this.state.currentChallenge + 1,
+      challenge_type: challenge.type,
+      time_seconds: timeTaken
+    });
+
     this.showResult(challenge, stars, error, timeTaken);
 
     // Update state
     if (stars > 0) {
+      // Track correct answer
+      trackEvent('challenge_answer_correct', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        stars: stars,
+        error_nm: Math.round(error.distanceNM * 10) / 10,
+        time_seconds: timeTaken
+      });
+
+      // Track challenge completion
+      const attempts = this.state.userProgress.challengesCompleted.filter(
+        c => c.chapter === this.state.currentChapter && c.challenge === this.state.currentChallenge
+      ).length + 1;
+      
+      trackEvent('challenge_complete', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        stars: stars,
+        time_seconds: timeTaken,
+        attempts: attempts
+      });
+
       this.state = completeChallenge(
         this.state,
         this.state.currentChapter,
@@ -1068,12 +1285,16 @@ class NauticalApp {
         timeTaken
       );
 
+      const prevDeadReckonerUnlocked = this.state.achievements.deadReckoner?.unlocked || false;
       this.state = updateAchievement(this.state, 'deadReckoner');
+      this.trackAchievementUpdate('deadReckoner', prevDeadReckonerUnlocked);
 
       if (stars === 3) {
         this.perfectStreak++;
         if (this.perfectStreak >= 3) {
+          const prevPrecisionUnlocked = this.state.achievements.precisionNavigator?.unlocked || false;
           this.state = updateAchievement(this.state, 'precisionNavigator', 3);
+          this.trackAchievementUpdate('precisionNavigator', prevPrecisionUnlocked);
         }
       } else {
         this.perfectStreak = 0;
@@ -1082,6 +1303,14 @@ class NauticalApp {
       // Increment nautical calculations
       this.state.userProgress.calculationsInNautical++;
       saveState(this.state);
+    } else {
+      // Track incorrect answer
+      trackEvent('challenge_answer_incorrect', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        error_nm: Math.round(error.distanceNM * 10) / 10,
+        time_seconds: timeTaken
+      });
     }
 
     this.updateProgressBar();
@@ -1134,10 +1363,20 @@ class NauticalApp {
     `;
 
     document.getElementById('continue-btn')?.addEventListener('click', () => {
+      trackEvent('challenge_continue', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        stars: stars
+      });
       this.nextChallenge();
     });
 
     document.getElementById('retry-btn')?.addEventListener('click', () => {
+      trackEvent('challenge_retry', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        previous_stars: stars
+      });
       this.loadChallenge(this.state.currentChallenge);
     });
   }
@@ -1145,6 +1384,12 @@ class NauticalApp {
   showSolution(challenge) {
     const resultEl = document.getElementById('result-display');
     if (!resultEl) return;
+
+    // Track solution view
+    trackEvent('challenge_solution_view', {
+      chapter_id: this.state.currentChapter,
+      challenge_id: this.state.currentChallenge + 1
+    });
 
     resultEl.classList.remove('hidden');
     resultEl.innerHTML = `
@@ -1336,7 +1581,9 @@ class NauticalApp {
     if (elapsed <= challenge.timeBonus.gold) {
       medal = '🥇 Gold';
       stars = 3;
+      const prevSpeedDemonUnlocked = this.state.achievements.speedDemon?.unlocked || false;
       this.state = updateAchievement(this.state, 'speedDemon');
+      this.trackAchievementUpdate('speedDemon', prevSpeedDemonUnlocked);
     } else if (elapsed <= challenge.timeBonus.silver) {
       medal = '🥈 Silver';
       stars = 2;
@@ -1364,8 +1611,15 @@ class NauticalApp {
   }
 
   prevChallenge() {
+    const fromChapter = this.state.currentChapter;
+    const fromChallenge = this.state.currentChallenge;
+    
     if (this.state.currentChallenge > 0) {
       this.loadChallenge(this.state.currentChallenge - 1);
+      trackEvent('chapter_prev', {
+        from_chapter: fromChapter,
+        to_chapter: fromChapter
+      });
     } else if (this.state.currentChapter > 1) {
       // Go to previous chapter's last challenge
       const prevChapter = chapters.find(c => c.id === this.state.currentChapter - 1);
@@ -1373,6 +1627,10 @@ class NauticalApp {
         this.state.currentChapter = prevChapter.id;
         saveState(this.state);
         this.loadChallenge(prevChapter.challenges.length - 1);
+        trackEvent('chapter_prev', {
+          from_chapter: fromChapter,
+          to_chapter: prevChapter.id
+        });
       }
     }
   }
@@ -1381,18 +1639,36 @@ class NauticalApp {
     const chapter = chapters.find(c => c.id === this.state.currentChapter);
     if (!chapter) return;
 
+    const fromChapter = this.state.currentChapter;
+    const fromChallenge = this.state.currentChallenge;
+
     if (this.state.currentChallenge < chapter.challenges.length - 1) {
       this.loadChallenge(this.state.currentChallenge + 1);
     } else {
       // Chapter complete
+      const progress = getChapterProgress(this.state, this.state.currentChapter);
+      const timeSeconds = Math.round((Date.now() - (this.state.sessionStartTime || Date.now())) / 1000);
+      
+      trackEvent('chapter_complete', {
+        chapter_id: this.state.currentChapter,
+        stars_earned: progress.stars,
+        time_seconds: timeSeconds
+      });
+
       this.state = completeChapter(this.state, this.state.currentChapter);
 
       if (this.state.currentChapter === 4) {
+        const prevChartMasterUnlocked = this.state.achievements.chartMaster?.unlocked || false;
         this.state = updateAchievement(this.state, 'chartMaster', 4);
+        this.trackAchievementUpdate('chartMaster', prevChartMasterUnlocked);
       }
 
       if (this.state.currentChapter < 5) {
         // Go to next chapter
+        trackEvent('chapter_next', {
+          from_chapter: fromChapter,
+          to_chapter: this.state.currentChapter + 1
+        });
         this.loadChapter(this.state.currentChapter + 1);
       } else {
         // All chapters complete, show quiz
@@ -1431,6 +1707,11 @@ class NauticalApp {
     const list = document.getElementById('chapter-list');
     if (!modal || !list) return;
 
+    // Track chapter menu open
+    trackEvent('chapter_menu_open', {
+      current_chapter: this.state.currentChapter
+    });
+
     list.innerHTML = chapters.map(chapter => {
       const isUnlocked = isChapterUnlocked(this.state, chapter.id);
       const progress = getChapterProgress(this.state, chapter.id);
@@ -1460,6 +1741,10 @@ class NauticalApp {
     list.querySelectorAll('[data-chapter]').forEach(el => {
       el.addEventListener('click', () => {
         const chapterId = parseInt(el.dataset.chapter);
+        trackEvent('chapter_menu_select', {
+          from_chapter: this.state.currentChapter,
+          to_chapter: chapterId
+        });
         this.loadChapter(chapterId);
         modal.close();
       });
@@ -1472,6 +1757,12 @@ class NauticalApp {
     this.currentMode = 'quiz';
     this.quizAnswers = [];
     this.currentQuestion = 0;
+    this.quizStartTime = Date.now();
+
+    // Track quiz start
+    trackEvent('quiz_start', {
+      total_questions: quizQuestions.length
+    });
 
     const panel = document.getElementById('panel-content');
     if (!panel) return;
@@ -1488,6 +1779,12 @@ class NauticalApp {
       this.showQuizResults();
       return;
     }
+
+    // Track question view
+    trackEvent('quiz_question_view', {
+      question_number: this.currentQuestion + 1,
+      question_id: question.id
+    });
 
     panel.innerHTML = `
       <div class="space-y-4 animate-fade-in">
@@ -1523,11 +1820,32 @@ class NauticalApp {
     const correct = question.options.find(o => o.correct)?.id === answerId;
     this.quizAnswers.push({ questionId: question.id, answerId, correct });
 
+    // Track answer submission
+    trackEvent('quiz_answer_submit', {
+      question_number: this.currentQuestion + 1,
+      question_id: question.id,
+      answer_id: answerId
+    });
+
     const panel = document.getElementById('panel-content');
     if (!panel) return;
 
     const selectedOption = question.options.find(o => o.id === answerId);
     const correctOption = question.options.find(o => o.correct);
+
+    // Track correct/incorrect
+    if (correct) {
+      trackEvent('quiz_answer_correct', {
+        question_number: this.currentQuestion + 1,
+        question_id: question.id
+      });
+    } else {
+      trackEvent('quiz_answer_incorrect', {
+        question_number: this.currentQuestion + 1,
+        question_id: question.id,
+        correct_answer: correctOption?.id || 'unknown'
+      });
+    }
 
     panel.innerHTML = `
       <div class="space-y-4 animate-fade-in">
@@ -1558,11 +1876,22 @@ class NauticalApp {
     const correct = this.quizAnswers.filter(a => a.correct).length;
     const total = quizQuestions.length;
     const percentage = Math.round((correct / total) * 100);
+    const timeSeconds = Math.round((Date.now() - this.quizStartTime) / 1000);
+
+    // Track quiz completion
+    trackEvent('quiz_complete', {
+      score: correct,
+      total: total,
+      percentage: percentage,
+      time_seconds: timeSeconds
+    });
 
     let medal = '';
     if (correct === total) {
       medal = '🏆 Navigation Expert';
+      const prevNavExpertUnlocked = this.state.achievements.navigationExpert?.unlocked || false;
       this.state = updateAchievement(this.state, 'navigationExpert');
+      this.trackAchievementUpdate('navigationExpert', prevNavExpertUnlocked);
     } else if (correct >= 8) {
       medal = '🥇 Gold';
     } else if (correct >= 6) {
@@ -1599,6 +1928,9 @@ class NauticalApp {
     `;
 
     document.getElementById('restart-quiz-btn')?.addEventListener('click', () => {
+      trackEvent('quiz_retake', {
+        previous_score: correct
+      });
       this.showQuiz();
     });
 
@@ -1663,6 +1995,11 @@ class NauticalApp {
     const collapseBtn = document.getElementById('collapse-globe-btn');
 
     const isCollapsed = globeSection?.classList.contains('section-collapsed');
+    
+    // Track globe collapse/expand
+    trackEvent('globe_collapse', {
+      action: isCollapsed ? 'expand' : 'collapse'
+    });
 
     if (isCollapsed) {
       // Expand globe
@@ -1752,6 +2089,45 @@ class NauticalApp {
     setTimeout(() => {
       toast.remove();
     }, 3000);
+  }
+
+  trackAchievementUpdate(achievementKey, wasUnlocked) {
+    const achievement = this.state.achievements[achievementKey];
+    if (!achievement) return;
+
+    // Track progress update
+    const unlockConditions = {
+      globeTrotter: 10,
+      deadReckoner: 5,
+      speedDemon: 1,
+      precisionNavigator: 3,
+      chartMaster: 5,
+      navigationExpert: 1
+    };
+
+    trackEvent('achievement_progress', {
+      achievement_key: achievementKey,
+      progress: achievement.progress,
+      requirement: unlockConditions[achievementKey] || 1
+    });
+
+    // Track unlock if just unlocked
+    if (achievement.unlocked && !wasUnlocked) {
+      const achievementNames = {
+        globeTrotter: 'globe_trotter',
+        deadReckoner: 'dead_reckoner',
+        speedDemon: 'speed_demon',
+        precisionNavigator: 'precision_navigator',
+        chartMaster: 'chart_master',
+        navigationExpert: 'navigation_expert'
+      };
+
+      trackEvent('achievement_unlock', {
+        achievement_key: achievementNames[achievementKey] || achievementKey,
+        achievement_name: achievementNames[achievementKey] || achievementKey,
+        total_stars: this.state.userProgress.scores.totalStars
+      });
+    }
   }
 }
 
