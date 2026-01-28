@@ -28,6 +28,8 @@ export class MercatorChart {
     this.showGreatCircle = false;
     this.isDragging = false;
     this.dragStartPoint = null;
+    this.wasDrag = false; // Track if the last interaction was a drag
+    this.mouseDownPos = null; // Track mouse position on mousedown
 
     this.onPointPlaced = null;
 
@@ -42,14 +44,16 @@ export class MercatorChart {
 
   createCanvas() {
     this.canvas = document.createElement('canvas');
-    this.canvas.width = this.options.width * window.devicePixelRatio;
-    this.canvas.height = this.options.height * window.devicePixelRatio;
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = this.options.width * dpr;
+    this.canvas.height = this.options.height * dpr;
     this.canvas.style.width = `${this.options.width}px`;
     this.canvas.style.height = `${this.options.height}px`;
     this.canvas.className = 'mercator-chart rounded-lg shadow-inner';
 
     this.ctx = this.canvas.getContext('2d');
-    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    // Avoid cumulative scaling across resizes by resetting transform.
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     this.container.appendChild(this.canvas);
   }
@@ -65,11 +69,20 @@ export class MercatorChart {
   }
 
   handleClick(e) {
+    // Don't place point if this was a drag operation
+    if (this.wasDrag) {
+      this.wasDrag = false; // Reset for next interaction
+      return;
+    }
+
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     const coords = this.canvasToLatLon(x, y);
+
+    // Reset wasDrag flag after handling click
+    this.wasDrag = false;
 
     if (this.onPointPlaced) {
       this.onPointPlaced(coords);
@@ -92,6 +105,17 @@ export class MercatorChart {
     }
 
     if (this.isDragging && this.dragStartPoint) {
+      // Check if mouse moved significantly (more than 5 pixels) - indicates a drag
+      if (this.mouseDownPos) {
+        const dx = x - this.mouseDownPos.x;
+        const dy = y - this.mouseDownPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 5) {
+          this.wasDrag = true; // Mark as drag if moved more than 5 pixels
+        }
+      }
+      
       // Ruler measurement
       this.dragEndPoint = coords;
       this.render();
@@ -104,11 +128,14 @@ export class MercatorChart {
     const y = e.clientY - rect.top;
 
     this.isDragging = true;
+    this.wasDrag = false; // Reset drag flag
+    this.mouseDownPos = { x, y }; // Store initial mouse position
     this.dragStartPoint = this.canvasToLatLon(x, y);
   }
 
-  handleMouseUp() {
-    if (this.isDragging && this.dragStartPoint && this.dragEndPoint) {
+  handleMouseUp(e) {
+    // If it was a drag and we have both points, calculate distance
+    if (this.isDragging && this.wasDrag && this.dragStartPoint && this.dragEndPoint) {
       // Calculate distance with ruler
       const distance = calculateDistance(
         this.dragStartPoint.lat, this.dragStartPoint.lon,
@@ -118,8 +145,15 @@ export class MercatorChart {
     }
 
     this.isDragging = false;
-    this.dragStartPoint = null;
-    this.dragEndPoint = null;
+    this.mouseDownPos = null;
+    
+    // If it wasn't a drag, clear the drag points so handleClick can place a point
+    // If it was a drag, keep them for ruler display (they'll be cleared on next interaction)
+    if (!this.wasDrag) {
+      this.dragStartPoint = null;
+      this.dragEndPoint = null;
+    }
+    
     this.render();
   }
 
@@ -127,12 +161,14 @@ export class MercatorChart {
     this.options.width = this.container.clientWidth;
     this.options.height = this.container.clientHeight;
 
-    this.canvas.width = this.options.width * window.devicePixelRatio;
-    this.canvas.height = this.options.height * window.devicePixelRatio;
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = this.options.width * dpr;
+    this.canvas.height = this.options.height * dpr;
     this.canvas.style.width = `${this.options.width}px`;
     this.canvas.style.height = `${this.options.height}px`;
 
-    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    // Reset transform before applying DPR scaling (prevents compounding).
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.render();
   }
 

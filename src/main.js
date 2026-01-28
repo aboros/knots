@@ -4,9 +4,10 @@
  */
 
 import { Globe } from './components/Globe.js';
+import { MercatorChart } from './components/MercatorChart.js';
 import { Dashboard } from './components/Dashboard.js';
 import { loadState, saveState, resetProgress, updateSettings, completeChallenge, completeChapter, updateAchievement, getChapterProgress, isChapterUnlocked } from './utils/storage.js';
-import { calculateDistance, calculateDestination, calculateRhumbDestination, calculateError, calculateStarRating, formatLatitude, formatLongitude, formatDistance, formatSpeed, dmToDecimal, DEG_TO_RAD, NM_TO_KM, kmhToKnots } from './utils/navigation.js';
+import { calculateDistance, calculateRhumbDistance, calculateDestination, calculateRhumbDestination, calculateError, calculateStarRating, formatLatitude, formatLongitude, formatDistance, formatSpeed, dmToDecimal, DEG_TO_RAD, NM_TO_KM, kmhToKnots } from './utils/navigation.js';
 import { chapters, quizQuestions, tooltips, achievements } from './data/challenges.js';
 import { trackEvent, trackSimpleEvent, throttle } from './utils/analytics.js';
 
@@ -14,6 +15,7 @@ class NauticalApp {
   constructor() {
     this.state = loadState();
     this.globe = null;
+    this.mercatorChart = null;
     this.landingGlobe = null;
     this.currentMode = 'landing'; // landing, tutorial, game, quiz
     this.placingPoint = null; // 'A', 'B', or null
@@ -518,8 +520,26 @@ class NauticalApp {
       return;
     }
 
+    // Only place points if placingPoint is set (user clicked the button first)
+    if (this.placingPoint !== 'A' && this.placingPoint !== 'B') {
+      return;
+    }
+
+    // Check if current challenge uses Mercator chart
+    const chapter = chapters.find(c => c.id === this.state.currentChapter);
+    const challenge = chapter?.challenges[this.state.currentChallenge];
+    
+    // Determine which chart to use (default to globe if challenge not found)
+    const isMercatorChallenge = challenge?.type === 'mercator';
+    const chart = isMercatorChallenge ? this.mercatorChart : this.globe;
+
+    // If no chart available, can't place points
+    if (!chart) {
+      return;
+    }
+
     if (this.placingPoint === 'A') {
-      this.globe.placePointA(coords.lat, coords.lon);
+      chart?.placePointA(coords.lat, coords.lon);
       this.currentPointA = coords;
       this.placingPoint = null;
       this.updatePlaceButtons();
@@ -541,7 +561,7 @@ class NauticalApp {
         this.trackAchievementUpdate('globeTrotter', prevUnlocked);
       }
     } else if (this.placingPoint === 'B') {
-      this.globe.placePointB(coords.lat, coords.lon);
+      chart?.placePointB(coords.lat, coords.lon);
       this.currentPointB = coords;
       this.placingPoint = null;
       this.updatePlaceButtons();
@@ -563,6 +583,7 @@ class NauticalApp {
         this.trackAchievementUpdate('globeTrotter', prevUnlocked);
       }
     }
+    // If placingPoint is null, do nothing (user hasn't clicked a place button)
   }
 
   handleHover(coords) {
@@ -634,8 +655,44 @@ class NauticalApp {
 
     this.challengeStartTime = Date.now();
     this.globe?.clearPoints();
+    this.mercatorChart?.clearPoints();
     this.currentPointA = null;
     this.currentPointB = null;
+
+    // Show/hide appropriate view based on challenge type
+    const globeContainer = document.getElementById('globe-container');
+    const mercatorContainer = document.getElementById('mercator-container');
+    const globeControls = document.getElementById('globe-controls');
+    const coordinateDisplay = document.getElementById('coordinate-display');
+    
+    if (challenge.type === 'mercator') {
+      // Hide globe, show mercator chart
+      if (globeContainer) globeContainer.classList.add('hidden');
+      if (globeControls) globeControls.classList.add('hidden');
+      if (coordinateDisplay) coordinateDisplay.classList.add('hidden');
+      if (mercatorContainer) mercatorContainer.classList.remove('hidden');
+      
+      // Initialize or update MercatorChart
+      if (!this.mercatorChart && mercatorContainer) {
+        this.mercatorChart = new MercatorChart(mercatorContainer, {
+          showGrid: true,
+          gridInterval: 10
+        });
+        this.mercatorChart.onPointPlaced = (coords) => this.handlePointPlaced(coords);
+      }
+      
+      // Set showGreatCircle if challenge requires it
+      if (challenge.showGreatCircle && this.mercatorChart) {
+        this.mercatorChart.setShowGreatCircle(true);
+      } else if (this.mercatorChart) {
+        this.mercatorChart.setShowGreatCircle(false);
+      }
+    } else {
+      // Show globe, hide mercator chart
+      if (globeContainer) globeContainer.classList.remove('hidden');
+      if (globeControls) globeControls.classList.remove('hidden');
+      if (mercatorContainer) mercatorContainer.classList.add('hidden');
+    }
 
     // Track challenge view
     const isFirstAttempt = !this.state.userProgress.challengesCompleted.some(
@@ -1106,7 +1163,16 @@ class NauticalApp {
     });
 
     document.getElementById('clear-points-btn')?.addEventListener('click', () => {
-      this.globe?.clearPoints();
+      const chapter = chapters.find(c => c.id === this.state.currentChapter);
+      const currentChallenge = chapter?.challenges[this.state.currentChallenge];
+      const isMercatorChallenge = currentChallenge?.type === 'mercator';
+      
+      if (isMercatorChallenge) {
+        this.mercatorChart?.clearPoints();
+      } else {
+        this.globe?.clearPoints();
+      }
+      
       this.currentPointA = null;
       this.currentPointB = null;
       this.placingPoint = null;
@@ -1122,7 +1188,17 @@ class NauticalApp {
 
     // Great circle toggle
     document.getElementById('show-great-circle')?.addEventListener('change', (e) => {
-      this.globe?.showGreatCircleComparison(e.target.checked);
+      const chapter = chapters.find(c => c.id === this.state.currentChapter);
+      const currentChallenge = chapter?.challenges[this.state.currentChallenge];
+      const isMercatorChallenge = currentChallenge?.type === 'mercator';
+      
+      if (isMercatorChallenge) {
+        this.mercatorChart?.setShowGreatCircle(e.target.checked);
+        this.updateMeasurementInfo(); // Update to show great circle distance
+      } else {
+        this.globe?.showGreatCircleComparison(e.target.checked);
+      }
+      
       const gcInfo = document.getElementById('great-circle-info');
       if (gcInfo) {
         gcInfo.style.display = e.target.checked ? 'flex' : 'none';
@@ -1154,10 +1230,16 @@ class NauticalApp {
     const btnA = document.getElementById('place-a-btn');
     const btnB = document.getElementById('place-b-btn');
 
+    // Check if current challenge uses Mercator chart
+    const chapter = chapters.find(c => c.id === this.state.currentChapter);
+    const challenge = chapter?.challenges[this.state.currentChallenge];
+    const isMercatorChallenge = challenge?.type === 'mercator';
+    const clickText = isMercatorChallenge ? '📍 Click on chart...' : '📍 Click on globe...';
+
     if (btnA) {
       if (this.placingPoint === 'A') {
         btnA.classList.add('btn-active', 'ring-2', 'ring-red-400');
-        btnA.textContent = '📍 Click on globe...';
+        btnA.textContent = clickText;
       } else if (this.currentPointA) {
         btnA.classList.remove('btn-active', 'ring-2', 'ring-red-400');
         btnA.textContent = '✓ Point A placed';
@@ -1170,7 +1252,7 @@ class NauticalApp {
     if (btnB) {
       if (this.placingPoint === 'B') {
         btnB.classList.add('btn-active', 'ring-2', 'ring-blue-400');
-        btnB.textContent = '📍 Click on globe...';
+        btnB.textContent = clickText;
       } else if (this.currentPointB) {
         btnB.classList.remove('btn-active', 'ring-2', 'ring-blue-400');
         btnB.textContent = '✓ Point B placed';
@@ -1189,34 +1271,74 @@ class NauticalApp {
 
     infoEl.classList.remove('hidden');
 
-    const distance = calculateDistance(
-      this.currentPointA.lat, this.currentPointA.lon,
-      this.currentPointB.lat, this.currentPointB.lon
-    );
-
-    // Track distance measurement
-    trackEvent('challenge_distance_measure', {
-      chapter_id: this.state.currentChapter,
-      challenge_id: this.state.currentChallenge + 1,
-      distance_nm: Math.round(distance * 10) / 10,
-      distance_km: Math.round(distance * NM_TO_KM * 10) / 10
-    });
-
-    const formatted = formatDistance(distance);
-
-    const nmEl = document.getElementById('distance-nm');
-    const kmEl = document.getElementById('distance-km');
-    const coordAEl = document.getElementById('point-a-coords');
-    const coordBEl = document.getElementById('point-b-coords');
-
-    if (nmEl) nmEl.textContent = `${formatted.nm} nm`;
-    if (kmEl) kmEl.textContent = `(${formatted.km} km)`;
-    if (coordAEl) coordAEl.textContent = `${formatLatitude(this.currentPointA.lat)}, ${formatLongitude(this.currentPointA.lon)}`;
-    if (coordBEl) coordBEl.textContent = `${formatLatitude(this.currentPointB.lat)}, ${formatLongitude(this.currentPointB.lon)}`;
-
-    // Check for discovery challenges
     const chapter = chapters.find(c => c.id === this.state.currentChapter);
     const challenge = chapter?.challenges[this.state.currentChallenge];
+    const isMercatorChallenge = challenge?.type === 'mercator';
+
+    if (isMercatorChallenge) {
+      // For mercator challenges, show rhumb line and great circle distances
+      const rhumbDistance = calculateRhumbDistance(
+        this.currentPointA.lat, this.currentPointA.lon,
+        this.currentPointB.lat, this.currentPointB.lon
+      );
+      const greatCircleDistance = calculateDistance(
+        this.currentPointA.lat, this.currentPointA.lon,
+        this.currentPointB.lat, this.currentPointB.lon
+      );
+
+      const rhumbFormatted = formatDistance(rhumbDistance);
+      const gcFormatted = formatDistance(greatCircleDistance);
+
+      const rhumbEl = document.getElementById('rhumb-distance');
+      const gcEl = document.getElementById('gc-distance');
+      const gcInfoEl = document.getElementById('great-circle-info');
+
+      if (rhumbEl) rhumbEl.textContent = rhumbFormatted.display;
+      if (gcEl) gcEl.textContent = gcFormatted.display;
+      
+      // Show great circle info if checkbox is checked
+      const showGCCheckbox = document.getElementById('show-great-circle');
+      if (gcInfoEl && showGCCheckbox) {
+        gcInfoEl.style.display = showGCCheckbox.checked ? 'flex' : 'none';
+      }
+
+      // Track distance measurement
+      trackEvent('challenge_distance_measure', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        distance_nm: Math.round(rhumbDistance * 10) / 10,
+        distance_km: Math.round(rhumbDistance * NM_TO_KM * 10) / 10,
+        great_circle_nm: Math.round(greatCircleDistance * 10) / 10
+      });
+    } else {
+      // For non-mercator challenges, use existing logic
+      const distance = calculateDistance(
+        this.currentPointA.lat, this.currentPointA.lon,
+        this.currentPointB.lat, this.currentPointB.lon
+      );
+
+      // Track distance measurement
+      trackEvent('challenge_distance_measure', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        distance_nm: Math.round(distance * 10) / 10,
+        distance_km: Math.round(distance * NM_TO_KM * 10) / 10
+      });
+
+      const formatted = formatDistance(distance);
+
+      const nmEl = document.getElementById('distance-nm');
+      const kmEl = document.getElementById('distance-km');
+      const coordAEl = document.getElementById('point-a-coords');
+      const coordBEl = document.getElementById('point-b-coords');
+
+      if (nmEl) nmEl.textContent = `${formatted.nm} nm`;
+      if (kmEl) kmEl.textContent = `(${formatted.km} km)`;
+      if (coordAEl) coordAEl.textContent = `${formatLatitude(this.currentPointA.lat)}, ${formatLongitude(this.currentPointA.lon)}`;
+      if (coordBEl) coordBEl.textContent = `${formatLatitude(this.currentPointB.lat)}, ${formatLongitude(this.currentPointB.lon)}`;
+    }
+
+    // Check for discovery challenges
 
     if (challenge?.type === 'discovery' && challenge.discovery) {
       // Check if points are close to targets
