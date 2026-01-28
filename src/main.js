@@ -6,7 +6,7 @@
 import { Globe } from './components/Globe.js';
 import { Dashboard } from './components/Dashboard.js';
 import { loadState, saveState, resetProgress, updateSettings, completeChallenge, completeChapter, updateAchievement, getChapterProgress, isChapterUnlocked } from './utils/storage.js';
-import { calculateDistance, calculateDestination, calculateRhumbDestination, calculateError, calculateStarRating, formatLatitude, formatLongitude, formatDistance, formatSpeed, dmToDecimal, DEG_TO_RAD, NM_TO_KM } from './utils/navigation.js';
+import { calculateDistance, calculateDestination, calculateRhumbDestination, calculateError, calculateStarRating, formatLatitude, formatLongitude, formatDistance, formatSpeed, dmToDecimal, DEG_TO_RAD, NM_TO_KM, kmhToKnots } from './utils/navigation.js';
 import { chapters, quizQuestions, tooltips, achievements } from './data/challenges.js';
 import { trackEvent, trackSimpleEvent, throttle } from './utils/analytics.js';
 
@@ -20,6 +20,7 @@ class NauticalApp {
     this.challengeStartTime = null;
     this.tutorialStep = 0;
     this.perfectStreak = 0;
+    this.currentChallengeHintViewed = false; // Track if hint was viewed for current challenge
 
     this.init();
   }
@@ -614,6 +615,7 @@ class NauticalApp {
 
     const challenge = chapter.challenges[challengeIndex];
     this.state.currentChallenge = challengeIndex;
+    this.currentChallengeHintViewed = false; // Reset hint flag for new challenge
     saveState(this.state);
 
     // Track challenge start
@@ -713,6 +715,9 @@ class NauticalApp {
       if (hintCheckbox) {
         hintCheckbox.addEventListener('change', (e) => {
           if (e.target.checked) {
+            this.currentChallengeHintViewed = true; // Mark that hint was viewed
+            this.state.userProgress.hintsUsed++;
+            saveState(this.state);
             trackEvent('challenge_hint_view', {
               chapter_id: this.state.currentChapter,
               challenge_id: this.state.currentChallenge + 1,
@@ -1239,8 +1244,20 @@ class NauticalApp {
       challenge.expected.lat, challenge.expected.lon
     );
 
-    const distanceTraveled = challenge.speed * challenge.time;
-    const stars = calculateStarRating(error.distanceNM, distanceTraveled);
+    // Calculate distance traveled in nautical miles
+    // For comparison challenges, speed is in km/h, need to convert to knots first
+    let distanceTraveled;
+    if (challenge.speedKmh !== undefined) {
+      // Convert km/h to knots, then calculate distance in nm
+      const speedKnots = kmhToKnots(challenge.speedKmh);
+      distanceTraveled = speedKnots * challenge.time;
+    } else {
+      // Regular challenge with speed already in knots
+      distanceTraveled = challenge.speed * challenge.time;
+    }
+    
+    // If error is exactly 0, give perfect score regardless of calculation
+    const stars = error.distanceNM === 0 ? 3 : calculateStarRating(error.distanceNM, distanceTraveled);
     const timeTaken = Math.round((Date.now() - this.challengeStartTime) / 1000);
 
     // Track answer submission
@@ -1356,6 +1373,9 @@ class NauticalApp {
           Continue
         </button>
       ` : `
+        <button id="next-challenge-btn" class="btn btn-primary w-full mt-4">
+          Next Challenge
+        </button>
         <button id="retry-btn" class="btn btn-outline w-full mt-4">
           Try Again
         </button>
@@ -1363,6 +1383,15 @@ class NauticalApp {
     `;
 
     document.getElementById('continue-btn')?.addEventListener('click', () => {
+      trackEvent('challenge_continue', {
+        chapter_id: this.state.currentChapter,
+        challenge_id: this.state.currentChallenge + 1,
+        stars: stars
+      });
+      this.nextChallenge();
+    });
+
+    document.getElementById('next-challenge-btn')?.addEventListener('click', () => {
       trackEvent('challenge_continue', {
         chapter_id: this.state.currentChapter,
         challenge_id: this.state.currentChallenge + 1,
