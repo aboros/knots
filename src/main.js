@@ -215,6 +215,9 @@ class NauticalApp {
     document.getElementById('landing-screen')?.classList.add('hidden');
     document.getElementById('game-screen')?.classList.remove('hidden');
 
+    // Initialize mobile layout - set default expanded state for globe
+    this.initMobileLayout();
+
     // Initialize main globe
     const container = document.getElementById('globe-container');
     if (container) {
@@ -231,6 +234,27 @@ class NauticalApp {
       this.showTutorial();
     } else {
       this.loadChapter(this.state.currentChapter);
+    }
+  }
+
+  initMobileLayout() {
+    // On mobile, initialize the collapsed/expanded state properly
+    const globeSection = document.getElementById('globe-section');
+    const controlPanel = document.getElementById('control-panel');
+
+    // Only apply on mobile screens
+    if (window.innerWidth <= 640) {
+      // Start with globe collapsed by default for better content visibility
+      globeSection?.classList.add('section-collapsed');
+      globeSection?.classList.remove('section-expanded');
+      controlPanel?.classList.add('section-expanded');
+      controlPanel?.classList.remove('section-collapsed');
+
+      // Update the collapse button icon
+      const collapseBtn = document.getElementById('collapse-globe-btn');
+      if (collapseBtn) {
+        collapseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>`;
+      }
     }
   }
 

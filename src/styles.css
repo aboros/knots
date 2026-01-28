@@ -332,7 +332,19 @@
 }
 
 @media (max-width: 640px) {
-  /* Globe section collapse/expand - need !important to override Tailwind classes */
+  /* Default mobile layout - globe collapsed, control panel expanded */
+  #globe-section {
+    flex: none !important;
+    height: 25vh !important;
+    min-height: 120px !important;
+  }
+
+  #control-panel {
+    flex: 1 !important;
+    max-height: none !important;
+  }
+
+  /* Globe section collapse/expand states */
   #globe-section.section-collapsed {
     flex: none !important;
     height: 25vh !important;
