@@ -59,6 +59,11 @@ export class Globe {
     this.onPointPlaced = null;
     this.onHover = null;
 
+    // Track mouse state to prevent accidental clicks after rotation
+    this.isDragging = false;
+    this.mouseDownPos = null;
+    this.clickBlockedUntil = 0; // Timestamp when clicks are allowed again
+
     this.init();
   }
 
@@ -220,12 +225,44 @@ export class Globe {
   }
 
   addEventListeners() {
+    this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
+    this.renderer.domElement.addEventListener('mouseup', (e) => this.onMouseUp(e));
     this.renderer.domElement.addEventListener('click', (e) => this.onClick(e));
     this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
     window.addEventListener('resize', () => this.onResize());
   }
 
+  onMouseDown(event) {
+    // Track mouse down position to detect dragging
+    this.mouseDownPos = { x: event.clientX, y: event.clientY };
+    this.isDragging = false;
+  }
+
+  onMouseUp(event) {
+    // Check if this was a drag (rotation) or a click
+    if (this.mouseDownPos) {
+      const dx = Math.abs(event.clientX - this.mouseDownPos.x);
+      const dy = Math.abs(event.clientY - this.mouseDownPos.y);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // If mouse moved more than 5 pixels, it was a drag
+      if (distance > 5) {
+        this.isDragging = true;
+        // Block clicks for 300ms after drag ends to prevent accidental point placement
+        this.clickBlockedUntil = Date.now() + 300;
+      }
+      
+      this.mouseDownPos = null;
+    }
+  }
+
   onClick(event) {
+    // Prevent clicks immediately after rotation/drag
+    if (Date.now() < this.clickBlockedUntil || this.isDragging) {
+      this.isDragging = false; // Reset flag
+      return;
+    }
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -244,6 +281,18 @@ export class Globe {
   }
 
   onMouseMove(event) {
+    // Detect if we're dragging during mouse move
+    if (this.mouseDownPos) {
+      const dx = Math.abs(event.clientX - this.mouseDownPos.x);
+      const dy = Math.abs(event.clientY - this.mouseDownPos.y);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // If mouse moved more than 5 pixels, mark as dragging
+      if (distance > 5) {
+        this.isDragging = true;
+      }
+    }
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;

@@ -400,11 +400,13 @@ class NauticalApp {
     if (this.globe && !this._tutorialRotationListenerAdded) {
       this._tutorialRotationListenerAdded = true;
       this.globe.controls.addEventListener('change', () => {
-        if (this.currentMode === 'tutorial' && !this.state.tutorialProgress.globeRotated) {
-          this.state.tutorialProgress.globeRotated = true;
-          saveState(this.state);
-          trackSimpleEvent('tutorial_globe_rotate');
-          if (this.tutorialSteps[this.tutorialStep]?.waitFor === 'globeRotated') {
+        if (this.currentMode === 'tutorial') {
+          // Only track rotation if we're on the step that expects it
+          const currentStep = this.tutorialSteps?.[this.tutorialStep];
+          if (currentStep?.waitFor === 'globeRotated' && !this.state.tutorialProgress.globeRotated) {
+            this.state.tutorialProgress.globeRotated = true;
+            saveState(this.state);
+            trackSimpleEvent('tutorial_globe_rotate');
             this.tutorialStep++;
             this.renderTutorialStep();
           }
@@ -493,14 +495,18 @@ class NauticalApp {
 
   handlePointPlaced(coords) {
     if (this.currentMode === 'tutorial') {
-      if (!this.state.tutorialProgress.pointAPlaced) {
+      // Only place points during the appropriate tutorial steps
+      // Check if current step is waiting for point placement
+      const currentStep = this.tutorialSteps?.[this.tutorialStep];
+      
+      if (currentStep?.waitFor === 'pointAPlaced' && !this.state.tutorialProgress.pointAPlaced) {
         this.globe.placePointA(coords.lat, coords.lon);
         this.state.tutorialProgress.pointAPlaced = true;
         saveState(this.state);
         trackSimpleEvent('tutorial_point_a_placed');
         this.tutorialStep++;
         this.renderTutorialStep();
-      } else if (!this.state.tutorialProgress.pointBPlaced) {
+      } else if (currentStep?.waitFor === 'pointBPlaced' && !this.state.tutorialProgress.pointBPlaced) {
         this.globe.placePointB(coords.lat, coords.lon);
         this.state.tutorialProgress.pointBPlaced = true;
         saveState(this.state);
@@ -508,6 +514,7 @@ class NauticalApp {
         this.tutorialStep++;
         this.renderTutorialStep();
       }
+      // If we're not on a step that expects point placement, ignore the click
       return;
     }
 
