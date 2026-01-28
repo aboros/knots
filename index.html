@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="nautical">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Learn why nautical miles and knots are superior for navigation through interactive challenges">
+  <title>Why Do Ships and Planes Use Knots? - Interactive Navigation Learning</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-sky-50 to-sky-100">
+  <div id="app" class="min-h-screen">
+    <!-- Landing Screen -->
+    <div id="landing-screen" class="min-h-screen flex flex-col items-center justify-center p-4">
+      <div class="text-center max-w-2xl mx-auto">
+        <div id="landing-globe-container" class="w-64 h-64 mx-auto mb-8 relative">
+          <!-- 3D Globe will be inserted here -->
+        </div>
+        <h1 class="text-4xl md:text-5xl font-bold text-slate-800 mb-4">
+          Why Do Ships and Planes Use Knots?
+        </h1>
+        <p class="text-xl text-slate-600 mb-8">
+          An Interactive Exploration
+        </p>
+        <button id="start-btn" class="btn btn-primary btn-lg gap-2 text-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Start Learning
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Game Screen -->
+    <div id="game-screen" class="hidden min-h-screen">
+      <!-- Progress Bar -->
+      <div id="progress-bar" class="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b border-slate-200">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <button id="home-btn" class="btn btn-ghost btn-sm btn-circle" aria-label="Go to home">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+            </button>
+            <div class="flex items-center gap-2">
+              <span id="chapter-label" class="text-sm font-medium text-slate-600">Chapter 1/5</span>
+              <progress id="chapter-progress" class="progress progress-primary w-32 md:w-48" value="0" max="100"></progress>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="badge badge-primary gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              <span id="total-stars">0</span>
+            </div>
+            <button id="settings-btn" class="btn btn-ghost btn-sm btn-circle" aria-label="Settings">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div id="main-content" class="pt-16 min-h-screen flex flex-col lg:flex-row">
+        <!-- Globe Container -->
+        <div id="globe-section" class="flex-1 relative min-h-[50vh] lg:min-h-screen">
+          <div id="globe-container" class="absolute inset-0">
+            <!-- 3D Globe Canvas will be inserted here -->
+          </div>
+          <!-- Globe Controls Overlay -->
+          <div id="globe-controls" class="absolute bottom-4 left-4 flex flex-col gap-2">
+            <div class="btn-group btn-group-vertical shadow-lg">
+              <button id="zoom-in-btn" class="btn btn-sm bg-white/90 hover:bg-white" aria-label="Zoom in">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              <button id="zoom-out-btn" class="btn btn-sm bg-white/90 hover:bg-white" aria-label="Zoom out">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                </svg>
+              </button>
+              <button id="reset-view-btn" class="btn btn-sm bg-white/90 hover:bg-white" aria-label="Reset view">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <!-- Coordinate Display -->
+          <div id="coordinate-display" class="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-3 hidden">
+            <div class="text-sm font-mono">
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500">Lat:</span>
+                <span id="hover-lat" class="font-medium">--°--'</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500">Lon:</span>
+                <span id="hover-lon" class="font-medium">--°--'</span>
+              </div>
+            </div>
+          </div>
+          <!-- Mobile Globe Collapse Button -->
+          <button id="collapse-globe-btn" class="lg:hidden absolute top-2 right-2 btn btn-sm btn-circle bg-white/90 shadow" aria-label="Collapse globe">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Control Panel -->
+        <div id="control-panel" class="w-full lg:w-[420px] bg-white shadow-xl overflow-y-auto max-h-[50vh] lg:max-h-screen">
+          <!-- Panel Content will be dynamically inserted -->
+          <div id="panel-content" class="p-4 md:p-6">
+            <!-- Loading state -->
+            <div class="flex items-center justify-center py-12">
+              <span class="loading loading-spinner loading-lg text-primary"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Buttons -->
+      <div id="nav-buttons" class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/90 backdrop-blur-sm rounded-full shadow-lg px-6 py-3">
+        <button id="prev-btn" class="btn btn-ghost btn-sm" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          Previous
+        </button>
+        <button id="chapter-menu-btn" class="btn btn-primary btn-sm">
+          Chapter Menu
+        </button>
+        <button id="next-btn" class="btn btn-ghost btn-sm">
+          Next
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tutorial Overlay -->
+    <div id="tutorial-overlay" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 md:p-8">
+        <div id="tutorial-content">
+          <!-- Tutorial steps will be inserted here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Chapter Menu Modal -->
+    <dialog id="chapter-modal" class="modal">
+      <div class="modal-box max-w-2xl">
+        <h3 class="font-bold text-2xl mb-6">Chapter Menu</h3>
+        <div id="chapter-list" class="space-y-3">
+          <!-- Chapters will be inserted here -->
+        </div>
+        <div class="modal-action">
+          <form method="dialog">
+            <button class="btn">Close</button>
+          </form>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    </dialog>
+
+    <!-- Settings Modal -->
+    <dialog id="settings-modal" class="modal">
+      <div class="modal-box">
+        <h3 class="font-bold text-xl mb-6">Settings</h3>
+        <div class="space-y-4">
+          <div class="form-control">
+            <label class="label cursor-pointer">
+              <span class="label-text">Show Hints</span>
+              <input type="checkbox" id="show-hints-toggle" class="toggle toggle-primary" checked />
+            </label>
+          </div>
+          <div class="form-control">
+            <label class="label cursor-pointer">
+              <span class="label-text">Show Grid Lines</span>
+              <input type="checkbox" id="show-grid-toggle" class="toggle toggle-primary" checked />
+            </label>
+          </div>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Globe Rotation Speed</span>
+            </label>
+            <input type="range" id="rotation-speed" min="0" max="2" step="0.1" value="1" class="range range-primary" />
+          </div>
+          <div class="divider"></div>
+          <button id="reset-progress-btn" class="btn btn-error btn-outline w-full">
+            Reset All Progress
+          </button>
+        </div>
+        <div class="modal-action">
+          <form method="dialog">
+            <button class="btn">Close</button>
+          </form>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    </dialog>
+
+    <!-- Achievement Toast Container -->
+    <div id="toast-container" class="toast toast-top toast-end z-50">
+      <!-- Toasts will be inserted here -->
+    </div>
+
+    <!-- First Visit Notice -->
+    <div id="first-visit-notice" class="hidden fixed bottom-4 right-4 z-40">
+      <div class="alert shadow-lg max-w-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-info shrink-0 w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+          <span class="text-sm">Progress saved locally in your browser. Clearing browser data will reset your progress.</span>
+        </div>
+        <button id="dismiss-notice-btn" class="btn btn-ghost btn-sm btn-circle">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

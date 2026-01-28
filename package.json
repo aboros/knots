@@ -1,0 +1,22 @@
+{
+  "name": "nautical-navigation-game",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Interactive nautical navigation learning experience",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": ["navigation", "nautical", "education", "three.js"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "autoprefixer": "^10.4.23",
+    "daisyui": "^4.12.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "three": "^0.160.1",
+    "vite": "^7.3.1"
+  }
+}
