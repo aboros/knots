@@ -296,12 +296,9 @@
     @apply px-2;
   }
 
+  /* Hide fixed nav buttons on mobile - they're inline in the panel */
   #nav-buttons {
-    @apply px-3 py-2;
-  }
-
-  #nav-buttons .btn {
-    @apply btn-xs;
+    @apply hidden;
   }
 
   .challenge-card {

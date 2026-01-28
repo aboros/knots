@@ -516,10 +516,39 @@ class NauticalApp {
       `;
     }
 
+    // Mobile navigation buttons (visible only on small screens)
+    const isFirstChallenge = this.state.currentChapter === 1 && this.state.currentChallenge === 0;
+    content += `
+      <div class="md:hidden border-t border-slate-200 mt-6 pt-4">
+        <div class="flex items-center justify-between gap-2">
+          <button id="mobile-prev-btn" class="btn btn-ghost btn-sm flex-1" ${isFirstChallenge ? 'disabled' : ''}>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Prev
+          </button>
+          <button id="mobile-chapter-menu-btn" class="btn btn-primary btn-sm flex-1">
+            Chapters
+          </button>
+          <button id="mobile-next-btn" class="btn btn-ghost btn-sm flex-1">
+            Next
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+
     content += `</div>`;
     panel.innerHTML = content;
 
     this.bindChallengeEvents(challenge);
+
+    // Bind mobile navigation buttons
+    document.getElementById('mobile-prev-btn')?.addEventListener('click', () => this.prevChallenge());
+    document.getElementById('mobile-next-btn')?.addEventListener('click', () => this.nextChallenge());
+    document.getElementById('mobile-chapter-menu-btn')?.addEventListener('click', () => this.showChapterMenu());
   }
 
   renderMeasurementUI(challenge) {
