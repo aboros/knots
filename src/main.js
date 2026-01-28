@@ -230,99 +230,137 @@ class NauticalApp {
   }
 
   showTutorial() {
-    const overlay = document.getElementById('tutorial-overlay');
-    const content = document.getElementById('tutorial-content');
-    if (!overlay || !content) return;
+    // Render tutorial in the sidebar panel instead of a modal overlay
+    const panel = document.getElementById('panel-content');
+    if (!panel) return;
 
-    const steps = [
+    this.tutorialSteps = [
       {
         title: 'Welcome to Navigation!',
         text: 'Navigation uses coordinates: latitude and longitude. These are measured in degrees and minutes.',
-        action: 'Continue'
+        action: 'Continue',
+        icon: '🌍'
       },
       {
         title: 'The Coordinate Grid',
         text: 'Latitude lines run east-west and measure how far north or south you are. Longitude lines run north-south and measure east-west position.',
-        action: 'Continue'
+        action: 'Continue',
+        icon: '📐'
       },
       {
         title: 'Try Rotating the Globe',
         text: 'Click and drag on the globe to rotate it. Explore the coordinate grid!',
         action: 'rotate',
-        waitFor: 'globeRotated'
+        waitFor: 'globeRotated',
+        icon: '🔄'
       },
       {
         title: 'Place Your First Point',
         text: 'Now click anywhere on the globe to place Point A. Watch the coordinates appear!',
         action: 'place',
-        waitFor: 'pointAPlaced'
+        waitFor: 'pointAPlaced',
+        icon: '📍'
       },
       {
         title: 'Place a Second Point',
         text: 'Click somewhere else to place Point B. The distance between the points will be calculated automatically.',
         action: 'place',
-        waitFor: 'pointBPlaced'
+        waitFor: 'pointBPlaced',
+        icon: '📍'
       },
       {
         title: 'You\'re Ready!',
         text: 'What if our speed and distance units matched this coordinate grid? That\'s exactly what nautical miles and knots do!',
-        action: 'Start Chapter 1'
+        action: 'Start Chapter 1',
+        icon: '🎉'
       }
     ];
 
-    this.tutorialStep = 0;
-    overlay.classList.remove('hidden');
+    this.renderTutorialStep();
 
-    const renderStep = () => {
-      const step = steps[this.tutorialStep];
-      let skipButton = '';
-
-      if (this.tutorialStep >= 2 && !this.state.settings.tutorialCompleted) {
-        skipButton = '<button class="btn btn-ghost btn-sm mt-4" id="skip-tutorial-btn">Skip Tutorial</button>';
-      }
-
-      content.innerHTML = `
-        <h3 class="text-xl font-bold mb-4">${step.title}</h3>
-        <p class="text-slate-600 mb-6">${step.text}</p>
-        <div class="flex flex-col items-center gap-2">
-          ${step.action === 'rotate' || step.action === 'place' ?
-            `<p class="text-sm text-slate-500 italic">Complete the action to continue...</p>` :
-            `<button class="btn btn-primary" id="tutorial-action-btn">${step.action}</button>`
-          }
-          ${skipButton}
-        </div>
-      `;
-
-      document.getElementById('tutorial-action-btn')?.addEventListener('click', () => {
-        this.tutorialStep++;
-        if (this.tutorialStep >= steps.length) {
-          this.completeTutorial();
-        } else {
-          renderStep();
-        }
-      });
-
-      document.getElementById('skip-tutorial-btn')?.addEventListener('click', () => {
-        this.completeTutorial();
-      });
-    };
-
-    renderStep();
-
-    // Track tutorial interactions
-    if (this.globe) {
-      const originalOnChange = this.globe.controls.addEventListener;
+    // Track globe rotation for tutorial
+    if (this.globe && !this._tutorialRotationListenerAdded) {
+      this._tutorialRotationListenerAdded = true;
       this.globe.controls.addEventListener('change', () => {
-        if (!this.state.tutorialProgress.globeRotated) {
+        if (this.currentMode === 'tutorial' && !this.state.tutorialProgress.globeRotated) {
           this.state.tutorialProgress.globeRotated = true;
           saveState(this.state);
-          if (steps[this.tutorialStep]?.waitFor === 'globeRotated') {
+          if (this.tutorialSteps[this.tutorialStep]?.waitFor === 'globeRotated') {
             this.tutorialStep++;
-            renderStep();
+            this.renderTutorialStep();
           }
         }
       });
     }
+  }
+
+  renderTutorialStep() {
+    const panel = document.getElementById('panel-content');
+    if (!panel || !this.tutorialSteps) return;
+
+    const step = this.tutorialSteps[this.tutorialStep];
+    if (!step) return;
+
+    const isInteractiveStep = step.action === 'rotate' || step.action === 'place';
+    const showSkipButton = this.tutorialStep >= 2;
+
+    panel.innerHTML = `
+      <div class="space-y-6 animate-fade-in">
+        <!-- Progress indicator -->
+        <div class="flex items-center gap-2">
+          <span class="badge badge-primary">Tutorial</span>
+          <span class="text-sm text-slate-500">Step ${this.tutorialStep + 1} of ${this.tutorialSteps.length}</span>
+        </div>
+        <progress class="progress progress-primary w-full" value="${((this.tutorialStep + 1) / this.tutorialSteps.length) * 100}" max="100"></progress>
+
+        <!-- Step content -->
+        <div class="text-center py-4">
+          <div class="text-5xl mb-4">${step.icon}</div>
+          <h2 class="text-xl font-bold text-slate-800 mb-3">${step.title}</h2>
+          <p class="text-slate-600">${step.text}</p>
+        </div>
+
+        <!-- Action area -->
+        <div class="flex flex-col items-center gap-3 pt-4">
+          ${isInteractiveStep ? `
+            <div class="flex items-center gap-2 text-sky-600">
+              <span class="loading loading-dots loading-sm"></span>
+              <span class="text-sm font-medium">Waiting for your action on the globe...</span>
+            </div>
+          ` : `
+            <button class="btn btn-primary w-full" id="tutorial-action-btn">${step.action}</button>
+          `}
+
+          ${showSkipButton ? `
+            <button class="btn btn-ghost btn-sm" id="skip-tutorial-btn">Skip Tutorial</button>
+          ` : ''}
+        </div>
+
+        <!-- Hint for interactive steps -->
+        ${isInteractiveStep ? `
+          <div class="alert alert-info">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="text-sm">${step.action === 'rotate' ? 'Click and drag on the globe to the left to rotate it.' : 'Click anywhere on the blue globe to place a point.'}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    // Bind button events
+    document.getElementById('tutorial-action-btn')?.addEventListener('click', () => {
+      this.tutorialStep++;
+      if (this.tutorialStep >= this.tutorialSteps.length) {
+        this.completeTutorial();
+      } else {
+        this.renderTutorialStep();
+      }
+    });
+
+    document.getElementById('skip-tutorial-btn')?.addEventListener('click', () => {
+      this.completeTutorial();
+    });
   }
 
   handlePointPlaced(coords) {
@@ -332,13 +370,13 @@ class NauticalApp {
         this.state.tutorialProgress.pointAPlaced = true;
         saveState(this.state);
         this.tutorialStep++;
-        this.showTutorial();
+        this.renderTutorialStep();
       } else if (!this.state.tutorialProgress.pointBPlaced) {
         this.globe.placePointB(coords.lat, coords.lon);
         this.state.tutorialProgress.pointBPlaced = true;
         saveState(this.state);
         this.tutorialStep++;
-        this.showTutorial();
+        this.renderTutorialStep();
       }
       return;
     }
