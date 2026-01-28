@@ -116,12 +116,32 @@
         </div>
 
         <!-- Control Panel -->
-        <div id="control-panel" class="w-full lg:w-[420px] bg-white shadow-xl overflow-y-auto max-h-[50vh] lg:max-h-screen">
-          <!-- Panel Content will be dynamically inserted -->
-          <div id="panel-content" class="p-4 md:p-6">
+        <div id="control-panel" class="w-full lg:w-[420px] bg-white shadow-xl flex flex-col max-h-[50vh] lg:max-h-screen">
+          <!-- Scrollable Panel Content -->
+          <div id="panel-content" class="p-4 md:p-6 flex-1 overflow-y-auto">
             <!-- Loading state -->
             <div class="flex items-center justify-center py-12">
               <span class="loading loading-spinner loading-lg text-primary"></span>
+            </div>
+          </div>
+          <!-- Mobile Navigation Footer (sticky at bottom, shown on mobile only) -->
+          <div id="mobile-nav-footer" class="hidden border-t border-slate-200 bg-white p-3 flex-shrink-0">
+            <div class="flex items-center justify-between gap-2">
+              <button id="mobile-prev-btn" class="btn btn-ghost btn-sm flex-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Prev
+              </button>
+              <button id="mobile-chapter-menu-btn" class="btn btn-primary btn-sm flex-1">
+                Chapters
+              </button>
+              <button id="mobile-next-btn" class="btn btn-ghost btn-sm flex-1">
+                Next
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>

@@ -296,7 +296,7 @@
     @apply px-2;
   }
 
-  /* Hide fixed nav buttons on mobile - they're inline in the panel */
+  /* Hide fixed nav buttons on mobile - we use the sticky footer instead */
   #nav-buttons {
     @apply hidden;
   }
@@ -312,6 +312,22 @@
   /* Stack coordinate inputs on mobile */
   .coord-input-group {
     @apply flex-wrap;
+  }
+
+  /* Mobile navigation footer - sticky at bottom of control panel */
+  #mobile-nav-footer:not(.hidden) {
+    display: flex !important;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Hide mobile nav footer on medium screens and up */
+@media (min-width: 769px) {
+  #mobile-nav-footer {
+    display: none !important;
   }
 }
 

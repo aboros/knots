@@ -135,6 +135,11 @@ class NauticalApp {
     document.getElementById('next-btn')?.addEventListener('click', () => this.nextChallenge());
     document.getElementById('chapter-menu-btn')?.addEventListener('click', () => this.showChapterMenu());
 
+    // Mobile navigation footer (always visible on mobile)
+    document.getElementById('mobile-prev-btn')?.addEventListener('click', () => this.prevChallenge());
+    document.getElementById('mobile-next-btn')?.addEventListener('click', () => this.nextChallenge());
+    document.getElementById('mobile-chapter-menu-btn')?.addEventListener('click', () => this.showChapterMenu());
+
     // Globe controls
     document.getElementById('zoom-in-btn')?.addEventListener('click', () => this.globe?.zoomIn());
     document.getElementById('zoom-out-btn')?.addEventListener('click', () => this.globe?.zoomOut());
@@ -516,39 +521,13 @@ class NauticalApp {
       `;
     }
 
-    // Mobile navigation buttons (visible only on small screens)
-    const isFirstChallenge = this.state.currentChapter === 1 && this.state.currentChallenge === 0;
-    content += `
-      <div class="md:hidden border-t border-slate-200 mt-6 pt-4">
-        <div class="flex items-center justify-between gap-2">
-          <button id="mobile-prev-btn" class="btn btn-ghost btn-sm flex-1" ${isFirstChallenge ? 'disabled' : ''}>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            Prev
-          </button>
-          <button id="mobile-chapter-menu-btn" class="btn btn-primary btn-sm flex-1">
-            Chapters
-          </button>
-          <button id="mobile-next-btn" class="btn btn-ghost btn-sm flex-1">
-            Next
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    `;
-
     content += `</div>`;
     panel.innerHTML = content;
 
     this.bindChallengeEvents(challenge);
 
-    // Bind mobile navigation buttons
-    document.getElementById('mobile-prev-btn')?.addEventListener('click', () => this.prevChallenge());
-    document.getElementById('mobile-next-btn')?.addEventListener('click', () => this.nextChallenge());
-    document.getElementById('mobile-chapter-menu-btn')?.addEventListener('click', () => this.showChapterMenu());
+    // Update mobile navigation footer state
+    this.updateMobileNavFooter();
   }
 
   renderMeasurementUI(challenge) {
@@ -1700,6 +1679,29 @@ class NauticalApp {
     // Reinitialize landing globe
     this.initLandingGlobe();
     this.currentMode = 'landing';
+
+    // Hide mobile nav footer
+    this.updateMobileNavFooter();
+  }
+
+  updateMobileNavFooter() {
+    const mobileNavFooter = document.getElementById('mobile-nav-footer');
+    const prevBtn = document.getElementById('mobile-prev-btn');
+
+    if (!mobileNavFooter) return;
+
+    // Show the mobile nav footer on game mode
+    if (this.currentMode === 'game') {
+      mobileNavFooter.classList.remove('hidden');
+    } else {
+      mobileNavFooter.classList.add('hidden');
+    }
+
+    // Disable prev button on first challenge
+    const isFirstChallenge = this.state.currentChapter === 1 && this.state.currentChallenge === 0;
+    if (prevBtn) {
+      prevBtn.disabled = isFirstChallenge;
+    }
   }
 
   updateUI() {
