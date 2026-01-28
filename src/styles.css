@@ -316,21 +316,30 @@
 }
 
 @media (max-width: 640px) {
+  /* Globe section collapse/expand - need !important to override Tailwind classes */
   #globe-section.section-collapsed {
-    height: 25vh;
-    min-height: 150px;
+    flex: none !important;
+    height: 25vh !important;
+    min-height: 120px !important;
   }
 
   #globe-section.section-expanded {
-    height: 60vh;
+    flex: none !important;
+    height: 65vh !important;
+    min-height: auto !important;
   }
 
-  #control-panel.section-collapsed {
-    max-height: 25vh;
-  }
-
+  /* Control panel adjusts inversely */
+  #globe-section.section-collapsed ~ #control-panel,
   #control-panel.section-expanded {
-    max-height: 75vh;
+    flex: 1 !important;
+    max-height: none !important;
+  }
+
+  #globe-section.section-expanded ~ #control-panel,
+  #control-panel.section-collapsed {
+    flex: none !important;
+    max-height: 35vh !important;
   }
 }
 

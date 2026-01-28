@@ -1656,24 +1656,35 @@ class NauticalApp {
 
   toggleGlobeCollapse() {
     const globeSection = document.getElementById('globe-section');
+    const controlPanel = document.getElementById('control-panel');
     const collapseBtn = document.getElementById('collapse-globe-btn');
 
-    if (globeSection?.classList.contains('section-collapsed')) {
-      globeSection.classList.remove('section-collapsed');
-      globeSection.classList.add('section-expanded');
+    const isCollapsed = globeSection?.classList.contains('section-collapsed');
+
+    if (isCollapsed) {
+      // Expand globe
+      globeSection?.classList.remove('section-collapsed');
+      globeSection?.classList.add('section-expanded');
+      controlPanel?.classList.remove('section-expanded');
+      controlPanel?.classList.add('section-collapsed');
       if (collapseBtn) {
+        // Up chevron when expanded (click to collapse)
         collapseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>`;
       }
     } else {
+      // Collapse globe
       globeSection?.classList.add('section-collapsed');
       globeSection?.classList.remove('section-expanded');
+      controlPanel?.classList.remove('section-collapsed');
+      controlPanel?.classList.add('section-expanded');
       if (collapseBtn) {
+        // Down chevron when collapsed (click to expand)
         collapseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>`;
       }
     }
 
-    // Trigger globe resize
-    setTimeout(() => this.globe?.onResize(), 100);
+    // Trigger globe resize after transition
+    setTimeout(() => this.globe?.onResize(), 150);
   }
 
   goHome() {
